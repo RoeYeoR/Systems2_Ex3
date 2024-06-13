@@ -1,19 +1,26 @@
 #include "Player.hpp"
 #include "PlotOfLand.hpp"
+#include "DevelopmentCardType.hpp"
 #include <iostream>
 
 
-Player::Player(const std::string& name) : name(name), victoryPoints(2) 
+Player::Player(const std::string& name) : name(name), victoryPoints(2), knightCards(0),monopoly(0), buildingRoads(0),yearOfAbundance(0)
    { 
       // Seed the random number generator
       srand(time(nullptr));
+
    }
 
    Player::~Player() {
     // Delete dynamically allocated development cards to avoid memory leaks
-    for (DevelopmentCard* card : developmentCards) {
-        delete card;
-    }
+    // for (DevelopmentCard* card : developmentCards) {
+    //     delete card;
+    // }
+   }
+
+   std::vector<Resource> Player::getResources()
+   {
+    return this->resources;
    }
 
 void Player::placeSettlement(const std::vector<std::string>& pieceNames, const std::vector<int>& numbers, const Board& board) {
@@ -28,20 +35,20 @@ void Player::placeSettlement(const std::vector<std::string>& pieceNames, const s
         PlotOfLand plot = board.getPlot(numbers[i]);
 
         // Check if the piece name matches the one specified and if it's a valid place for a settlement
-        if (plot.getLandType() == pieceNames[i]){ //&& /* Add condition to check validity */) {
-            // Place the settlement
-            // Update player's resources, victory points, etc.
-            // Example: playerResources[plot.resource]--; // Decrement resource count for the player
-            // Example: victoryPoints++; // Increment victory points for the player
-        } else {
-            // Handle invalid placement
-            throw std::invalid_argument("Invalid placement: Cannot place settlement at the specified location.");
-        }
+        // if (plot.getLandType() == pieceNames[i]){ //&& /* Add condition to check validity */) {
+        //     // Place the settlement
+        //     // Update player's resources, victory points, etc.
+        //     // Example: playerResources[plot.resource]--; // Decrement resource count for the player
+        //     // Example: victoryPoints++; // Increment victory points for the player
+        // } else {
+        //     // Handle invalid placement
+        //     throw std::invalid_argument("Invalid placement: Cannot place settlement at the specified location.");
+        // }
     }
 }
 
 
-void Player::placeRoad(const std::vector<std::string>& pieceNames, const std::vector<int>& numbers, const Board& board) {
+void Player::placeRoad(const std::vector<LandType>& pieceNames, const std::vector<int>& numbers, const Board& board) {
     // Check if the vectors are of the same size
     if (pieceNames.size() != numbers.size()) {
         throw std::invalid_argument("Invalid input: pieceNames and numbers vectors must have the same size.");
@@ -59,9 +66,9 @@ void Player::placeRoad(const std::vector<std::string>& pieceNames, const std::ve
             // Example: playerResources[plot.resource]--; // Decrement resource count for the player
             // Example: victoryPoints++; // Increment victory points for the player
         } else {
-            // Handle invalid placement
-            throw std::invalid_argument("Invalid placement: Cannot place road at the specified location.");
-        }
+        //     // Handle invalid placement
+        //     throw std::invalid_argument("Invalid placement: Cannot place road at the specified location.");
+         }
     }
 }
 
@@ -241,8 +248,14 @@ void Player::trade(Player& otherPlayer, ResourceType offeredResource, ResourceTy
     }
 
     // Perform the trade
+
+    //reduce
     resources[offeredIndex].changeAmount(-offeredAmount);
     otherPlayer.resources[desiredIndex].changeAmount(-desiredAmount);
+
+    //add
+    resources[desiredIndex].changeAmount(desiredAmount);
+    otherPlayer.resources[offeredIndex].changeAmount(offeredAmount);
 
 }
 
@@ -302,25 +315,93 @@ void Player::buyDevelopmentCard() {
         }
     }
 
-
     // Generate a random number between 0 and 2
     int randomNum = rand() % 3;
-
+    size_t random;
+    DevelopmentCardType cardType; 
     // Create an instance of a concrete subclass of DevelopmentCard based on the random number
     switch (randomNum) {
         case 0:
-            developmentCards.push_back(new PromotionCard());
+            random = std::rand()%3;
+            PromotionCardType pc_type;
+            switch(random)
+            {
+                case 0:
+                    pc_type = PromotionCardType::Monopoly;
+                    monopoly++;
+                    break;
+                case 1:
+                    pc_type = PromotionCardType::BuildingRoads;
+                    buildingRoads++;
+                    break;
+                case 2:
+                    pc_type = PromotionCardType::YearOfAbundance;
+                    yearOfAbundance++;
+                    break;
+
+
+            }
+            PromotionCards.push_back(PromotionCard(pc_type));
+            cardType = DevelopmentCardType::Promotion;
             break;
         case 1:
-            developmentCards.push_back(new VictoryPointCard());
+            VictoryPointCards.push_back(VictoryPointCard());
+            cardType = DevelopmentCardType::VictoryPoint;
+            victoryPoints++;
             break;
         case 2:
-            developmentCards.push_back(new KnightCard());
+            KnightCards.push_back(KnightCard());
+            cardType = DevelopmentCardType::Knight;
+            knightCards++;
             break;
         default:
             break;
     }
+    
+    std::cout << name << "got a " << cardType << " card !" << "\n";
+
 }
+
+
+ void Player::useDevelopmentCard(DevelopmentCardType type)
+ {
+    switch(type)
+    {
+        case DevelopmentCardType::Promotion:
+            int index;
+            std::cout << "Choose promotion card type: " << "\n";
+            std::cout << "1.monopoly"<<"\n";
+            std::cout << "2.buildingRoads"<<"\n";
+            std::cout << "3.yearOfAbundance" << "\n";
+            std::cin >> index;
+            switch(index)
+            {
+                case 1:
+                
+                   break;
+
+                case 2:
+                    break;
+
+                case 3:
+                    break;
+            }
+
+
+
+        case DevelopmentCardType::VictoryPoint:
+            if(victoryPoints>0)
+            {
+                //VictoryPointCard::use();
+            }
+
+
+
+    }
+
+
+
+ }
 
 void Player::endTurn() {
     // Implement end turn logic

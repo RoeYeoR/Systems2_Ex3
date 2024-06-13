@@ -17,6 +17,7 @@ public:
     void ChooseStartingPlayer();
     Board& getBoard();
     void printWinner();
+    void transferResource(Player& from, Player& to, const ResourceType& resource, int amount);
 };
 
 #endif // CATAN_HPP

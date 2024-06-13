@@ -18,6 +18,7 @@ private:
 
 public:
     Board();
+    void printBoard();
     void initializeBoard();
     PlotOfLand getPlot(int index) const;
 };

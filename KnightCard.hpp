@@ -4,7 +4,12 @@
 #include "DevelopmentCard.hpp"
 
 class KnightCard : public DevelopmentCard {
+private:
+     static int amount;
+
 public:
+    KnightCard();
+    int getAmount();
     void use() override;
 };
 

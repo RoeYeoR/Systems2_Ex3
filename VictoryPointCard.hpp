@@ -4,8 +4,17 @@
 #include "DevelopmentCard.hpp"
 
 class VictoryPointCard : public DevelopmentCard {
+
+private:
+    static int amount;  
+
+
+
+
 public:
-    void use() override;
+    VictoryPointCard();
+    int getAmount();
+    void use();
 };
 
 #endif // VICTORY_POINT_CARD_HPP

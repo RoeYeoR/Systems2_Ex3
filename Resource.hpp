@@ -1,7 +1,7 @@
 #ifndef RESOURCE_HPP
 #define RESOURCE_HPP
 
-enum class ResourceType { Wood, Brick, Wool, Oat, Iron, None };
+#include "ResourceType.hpp"
 
 class Resource {
 
@@ -13,9 +13,12 @@ class Resource {
     public:
     Resource(ResourceType type); 
     Resource(ResourceType type, int amount);
+    
     ResourceType getType();
-    void changeAmount(int amount);
     int getCurrentAmount();
+    void changeAmount(int amount);
+    void resetAmount();
+    friend std::ostream& operator<<(std::ostream& os, const ResourceType& resource);
 };
 
 #endif // RESOURCE_HPP

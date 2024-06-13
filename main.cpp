@@ -19,7 +19,10 @@ int main()
     // Starting the game. Every player places two settlements and two roads.
     catan.ChooseStartingPlayer(); // should print the name of the starting player, assume it is Amit.
     Board board = catan.getBoard(); // get the board of the game.
+    board.printBoard();
 
+
+    /*
     // Place initial settlements and roads for p1
     vector<string> places1 = {"Forest", "Hills"};
     vector<int> placesNum1 = {5, 6};
@@ -96,6 +99,6 @@ int main()
     p3.printPoints(); // p3 has 2 points because it has two settlements.
 
     catan.printWinner(); // Should print None because no player reached 10 points.
-
+    */
     return 0;
 }

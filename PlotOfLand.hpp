@@ -2,12 +2,15 @@
 #define PLOTOFLAND_HPP
 
 #include "Resource.hpp"
+#include "LandType.hpp"
 #include <string>
+
+
 
 class PlotOfLand {
 private:
     Resource resource;
-    std::string landType;
+    LandType landType;
     int number;
 
 public:
@@ -16,10 +19,11 @@ public:
 
     void setResource(ResourceType type);
     void setNumber(int num);
-    void setlandType(std::string landType);
+    void setlandType(LandType landType);
     Resource getResource() const;
     int getNumber() const;
-    std::string getLandType() const;
+    LandType getLandType() const;
+   
 };
 
 #endif // PLOTOFLAND_HPP
