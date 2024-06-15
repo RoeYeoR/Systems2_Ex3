@@ -5,7 +5,7 @@
 Resource::Resource(ResourceType type) : type(type) , amount(0){}
 Resource::Resource(ResourceType type, int amount) : type(type), amount(amount) {}
 
-ResourceType Resource::getType()
+ResourceType Resource::getType() const
 {
     return type;
 }

@@ -8,9 +8,14 @@
 #include <algorithm>
 #include "Point2D.hpp"
 
-Board::Board() {
+Board::Board() : positions(12, std::vector<int>(11)) {
     initializeBoard();
 }
+
+ std::vector<PlotOfLand> Board::getPlots()
+ {
+    return plots;
+ }
 
 void Board::initializeBoard() {
     // Define resources and piece names for each plot of land
@@ -105,6 +110,48 @@ void Board::initializeBoard() {
 
     setPlotsVertices();
 }
+
+
+  void Board::addSettlement(int plotIndex, const Point2D& vertex) {
+        plots[plotIndex].addSettlement(vertex);
+        globalSettlements.push_back(vertex);
+    }
+
+     bool Board::isVertexOccupied(const Point2D& vertex) const {
+        for (const auto& settlement : globalSettlements) {
+            if (settlement == vertex) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 void Board::printBoard() {
     // Define the layout of the board

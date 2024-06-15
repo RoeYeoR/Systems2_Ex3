@@ -14,7 +14,7 @@ class Resource {
     Resource(ResourceType type); 
     Resource(ResourceType type, int amount);
     
-    ResourceType getType();
+    ResourceType getType() const;
     int getCurrentAmount();
     void changeAmount(int amount);
     void resetAmount();

@@ -4,6 +4,7 @@
 #include "Catan.hpp"
 #include "Player.hpp"
 #include "Board.hpp"
+#include "LandType.hpp"
 using namespace std;
 
 int main()
@@ -20,13 +21,33 @@ int main()
     catan.ChooseStartingPlayer(); // should print the name of the starting player, assume it is Amit.
     Board board = catan.getBoard(); // get the board of the game.
     board.printBoard();
+    PlotOfLand plot =  board.getPlot(0);
+    cout << plot << "\n";
+    
+     // Player p1 (Amit) places two settlements and two roads
+    try {
+        // Place first settlement
+        p1.placeSettlement(board, 0, Point2D(2, 4));
+        p1.placeRoad(board, 1, Point2D(1, 2), Point2D(3, 5));
+
+        // Place second settlement
+        p1.placeSettlement(board, 7, Point2D(6, 2));
+        p1.placeRoad(board, 8, Point2D(6, 2), Point2D(7, 3));
+
+        // Print board after placements
+        board.printBoard();
+    } catch (const std::invalid_argument& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+    }
+
 
 
     /*
     // Place initial settlements and roads for p1
-    vector<string> places1 = {"Forest", "Hills"};
+    vector<LandType> places1 = {LandType::Forest, LandType::Hills};
     vector<int> placesNum1 = {5, 6};
     p1.placeSettlement(places1, placesNum1, board);
+    
     p1.placeRoad(places1, placesNum1, board);
 
     vector<string> places2 = {"Agricultural Land", "Desert"};

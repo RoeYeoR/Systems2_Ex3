@@ -1,10 +1,12 @@
 #include "Player.hpp"
 #include "PlotOfLand.hpp"
 #include "DevelopmentCardType.hpp"
+#include <algorithm>
 #include <iostream>
 
 
-Player::Player(const std::string& name) : name(name), victoryPoints(2), knightCards(0),monopoly(0), buildingRoads(0),yearOfAbundance(0)
+
+Player::Player(const std::string& name) : name(name), victoryPoints(2), knightCards(0),monopoly(0), buildingRoads(0),yearOfAbundance(0) ,isFirstTurn(true)
    { 
       // Seed the random number generator
       srand(time(nullptr));
@@ -22,53 +24,233 @@ Player::Player(const std::string& name) : name(name), victoryPoints(2), knightCa
    {
     return this->resources;
    }
+ void Player::placeSettlement(Board& board, int plotIndex, Point2D vertex) {
+        // Check if it's the first turn and the player has built 2 settlements and 2 roads
+        if (isFirstTurn && settlementsBuilt >= 2 && roadsBuilt >= 2) {
+            isFirstTurn = false;  // End the first turn
+        }
 
-void Player::placeSettlement(const std::vector<std::string>& pieceNames, const std::vector<int>& numbers, const Board& board) {
-    // Check if the vectors are of the same size
-    if (pieceNames.size() != numbers.size()) {
-        throw std::invalid_argument("Invalid input: pieceNames and numbers vectors must have the same size.");
+        // Check if the player has the required resources (only if it's not the first turn)
+        if (!isFirstTurn && (!hasResources(ResourceType::Brick, 1) || 
+                             !hasResources(ResourceType::Wood, 1) ||
+                             !hasResources(ResourceType::Wool, 1) ||
+                             !hasResources(ResourceType::Oat, 1))) {
+            throw std::invalid_argument("Not enough resources to place a settlement.");
+        }
+
+        // Get the plot from the board
+        PlotOfLand plot = board.getPlot(plotIndex);
+
+        // Validate the vertex
+        std::vector<Point2D> vertices = {
+            plot.getUpVertex(),
+            plot.getUpRightVertex(),
+            plot.getBottomRightVertex(),
+            plot.getBottomVertex(),
+            plot.getBottomLeftVertex(),
+            plot.getUpLeftVertex()
+        };
+
+        bool isValidVertex = false;
+        for (const auto& v : vertices) {
+            if (v == vertex) {
+                isValidVertex = true;
+                break;
+            }
+        }
+
+        if (!isValidVertex) {
+            throw std::invalid_argument("Invalid vertex specified.");
+        }
+
+        // Check if the vertex is already occupied
+        if (board.isVertexOccupied(vertex)) {
+            throw std::invalid_argument("Vertex is already occupied by a settlement.");
+        }
+
+        // Ensure the new settlement is at least two sections of road away from another settlement
+        for (const auto& settlement : settlements) {
+            if (vertex.distanceTo(settlement) < 2) {
+                throw std::invalid_argument("New settlement must be at least two sections of road away from another settlement.");
+            }
+        }
+
+        // Check adjacency rules
+        bool isAdjacentToRoad = false;
+        for (const auto& road : roads) {
+            if (road.getStart() == vertex || road.getEnd() == vertex) {
+                isAdjacentToRoad = true;
+                break;
+            }
+        }
+
+        if (!isAdjacentToRoad) {
+            throw std::invalid_argument("Settlement must be adjacent to a road.");
+        }
+
+        // Place the settlement
+        settlements.push_back(vertex);
+        board.addSettlement(plotIndex, vertex);
+
+        // Deduct the resources (only if it's not the first turn)
+        if (!isFirstTurn) {
+            removeResources(ResourceType::Brick, 1);
+            removeResources(ResourceType::Wood, 1);
+            removeResources(ResourceType::Wool, 1);
+            removeResources(ResourceType::Oat, 1);
+        }
+
+        // Award one victory point
+        ++victoryPoints;
+
+        // Increment the count of settlements built during the first turn
+        if (isFirstTurn) {
+            ++settlementsBuilt;
+
+            // Check if the first turn conditions are met after placing the settlement
+            if (settlementsBuilt >= 2 && roadsBuilt >= 2) {
+                isFirstTurn = false;  // End the first turn
+            }
+        }
+
+        std::cout << "Settlement placed at (" << vertex.getX() << ", " << vertex.getY() << ")" << std::endl;
     }
 
-    // Iterate through each piece and number
-    for (size_t i = 0; i < pieceNames.size(); ++i) {
-        // Get the plot at the specified index
-        PlotOfLand plot = board.getPlot(numbers[i]);
 
-        // Check if the piece name matches the one specified and if it's a valid place for a settlement
-        // if (plot.getLandType() == pieceNames[i]){ //&& /* Add condition to check validity */) {
-        //     // Place the settlement
-        //     // Update player's resources, victory points, etc.
-        //     // Example: playerResources[plot.resource]--; // Decrement resource count for the player
-        //     // Example: victoryPoints++; // Increment victory points for the player
-        // } else {
-        //     // Handle invalid placement
-        //     throw std::invalid_argument("Invalid placement: Cannot place settlement at the specified location.");
-        // }
+void Player::placeCity(Board& board, Point2D vertex) {
+    // Check if the player has the required resources
+    if ((!hasResources(ResourceType::Iron, 3) || !hasResources(ResourceType::Oat, 2)) && !isFirstTurn) {
+        throw std::invalid_argument("Not enough resources to place a city.");
     }
+
+    // Check if the vertex has an existing settlement
+    auto it = std::find(settlements.begin(), settlements.end(), vertex);
+    if (it == settlements.end()) {
+        throw std::invalid_argument("No settlement at the specified vertex to upgrade to a city.");
+    }
+
+    // Remove the settlement
+    settlements.erase(it);
+
+    // Add the city
+    cities.push_back(vertex);
+
+    // Deduct the resources
+    removeResources(ResourceType::Iron, 3);
+    removeResources(ResourceType::Oat, 2);
+
+    // Adjust victory points
+    --victoryPoints; // Lose 1 point from the settlement
+    victoryPoints += 2; // Gain 2 points for the city
+
+    std::cout << "City placed at (" << vertex.getX() << ", " << vertex.getY() << ")" << std::endl;
 }
 
 
-void Player::placeRoad(const std::vector<LandType>& pieceNames, const std::vector<int>& numbers, const Board& board) {
-    // Check if the vectors are of the same size
-    if (pieceNames.size() != numbers.size()) {
-        throw std::invalid_argument("Invalid input: pieceNames and numbers vectors must have the same size.");
+void Player::placeRoad(Board& board, int plotIndex, Point2D start, Point2D end) {
+    // Check if it's the first turn and the player has built 2 settlements and 2 roads
+    if (isFirstTurn && settlementsBuilt >= 2 && roadsBuilt >= 2) {
+        isFirstTurn = false;  // End the first turn
     }
 
-    // Iterate through each piece and number
-    for (size_t i = 0; i < pieceNames.size(); ++i) {
-        // Get the plot at the specified index
-        PlotOfLand plot = board.getPlot(numbers[i]);
+    // Check if the player has the required resources (only if it's not the first turn)
+    if (!isFirstTurn && (!hasResources(ResourceType::Brick, 1) || 
+                         !hasResources(ResourceType::Wood, 1))) {
+        throw std::invalid_argument("Not enough resources to place a road.");
+    }
 
-        // Check if the piece name matches the one specified and if it's a valid place for a road
-        if (plot.getLandType() == pieceNames[i]){ //&& /* Add condition to check validity */) {
-            // Place the road
-            // Update player's resources, victory points, etc.
-            // Example: playerResources[plot.resource]--; // Decrement resource count for the player
-            // Example: victoryPoints++; // Increment victory points for the player
+    // Get the plot from the board
+    PlotOfLand plot = board.getPlot(plotIndex);
+
+    // Validate the vertices
+    std::vector<Point2D> vertices = {
+        plot.getUpVertex(),
+        plot.getUpRightVertex(),
+        plot.getBottomRightVertex(),
+        plot.getBottomVertex(),
+        plot.getBottomLeftVertex(),
+        plot.getUpLeftVertex()
+    };
+
+    bool isValidStart = false;
+    bool isValidEnd = false;
+
+    for (const auto& v : vertices) {
+        if (v == start) {
+            isValidStart = true;
+        }
+        if (v == end) {
+            isValidEnd = true;
+        }
+    }
+
+    if (!isValidStart || !isValidEnd) {
+        throw std::invalid_argument("Invalid vertices specified.");
+    }
+
+    // Check adjacency rules
+    bool isAdjacentToSettlementOrRoad = false;
+
+    for (const auto& settlement : settlements) {
+        if (start.distanceTo(settlement) <= 1 || end.distanceTo(settlement) <= 1) {
+            isAdjacentToSettlementOrRoad = true;
+            break;
+        }
+    }
+
+    for (const auto& road : roads) {
+        if (road.getStart() == start || road.getEnd() == start || road.getStart() == end || road.getEnd() == end) {
+            isAdjacentToSettlementOrRoad = true;
+            break;
+        }
+    }
+
+    if (!isAdjacentToSettlementOrRoad) {
+        throw std::invalid_argument("Road must be adjacent to a settlement or another road.");
+    }
+
+    // Place the road
+    Road newRoad(start, end);
+    roads.push_back(newRoad);
+
+    // Deduct the resources (only if it's not the first turn)
+    if (!isFirstTurn) {
+        removeResources(ResourceType::Brick, 1);
+        removeResources(ResourceType::Wood, 1);
+    }
+
+    // Increment the count of roads built during the first turn
+    if (isFirstTurn) {
+        ++roadsBuilt;
+
+        // Check if the first turn conditions are met after placing the road
+        if (settlementsBuilt >= 2 && roadsBuilt >= 2) {
+            isFirstTurn = false;  // End the first turn
+        }
+    }
+
+    std::cout << "Road placed between (" << start.getX() << ", " << start.getY() << ") and (" << end.getX() << ", " << end.getY() << ")" << std::endl;
+}
+
+
+
+
+
+bool Player::hasResources(ResourceType type, int count) {
+    return std::count_if(resources.begin(), resources.end(), [type](const Resource& resource) {
+        return resource.getType() == type;
+    }) >= count;
+}
+
+void Player::removeResources(ResourceType type, int count) {
+    auto it = resources.begin();
+    while (count > 0 && it != resources.end()) {
+        if (it->getType() == type) {
+            it = resources.erase(it);
+            --count;
         } else {
-        //     // Handle invalid placement
-        //     throw std::invalid_argument("Invalid placement: Cannot place road at the specified location.");
-         }
+            ++it;
+        }
     }
 }
 
@@ -89,138 +271,7 @@ void Player::rollDice(const Board& board) {
     }
 }
 
-void Player::buildRoad() {
-    // Check if player has sufficient resources to build a road
-    // Assuming the resources required for a road are 1 brick and 1 wood
-    bool hasBrick = false;
-    bool hasWood = false;
-    for (auto& resource : resources) {
-        if (resource.getType() == ResourceType::Brick) {
-            hasBrick = true;
-        } else if (resource.getType() == ResourceType::Wood) {
-            hasWood = true;
-        }
-    }
 
-    // If player has sufficient resources, deduct the resources and build the road
-    if (hasBrick && hasWood) {
-        // Deduct resources
-        int brickToRemove = 1;
-        int woodToRemove = 1;
-        for (auto it = resources.begin(); it != resources.end();) {
-            if (it->getType() == ResourceType::Brick && brickToRemove > 0) {
-                it = resources.erase(it);
-                brickToRemove--;
-            } else if (it->getType() == ResourceType::Wood && woodToRemove > 0) {
-                it = resources.erase(it);
-                woodToRemove--;
-            } else {
-                ++it;
-            }
-    } 
-    }
-    else {
-        std::cout << "Insufficient resources to build a road." << std::endl;
-    }
-}
-
-void Player::buildSettlement() {
-    // Check if player has sufficient resources to build a settlement
-    // Assuming the resources required for a settlement are 1 brick, 1 wood, 1 wool, and 1 oat
-    bool hasBrick = false;
-    bool hasWood = false;
-    bool hasWool = false;
-    bool hasOat = false;
-    for (auto& resource : resources) {
-        if (resource.getType() == ResourceType::Brick) {
-            hasBrick = true;
-        } else if (resource.getType() == ResourceType::Wood) {
-            hasWood = true;
-        } else if (resource.getType() == ResourceType::Wool) {
-            hasWool = true;
-        } else if (resource.getType() == ResourceType::Oat) {
-            hasOat = true;
-        }
-    }
-
-    // If player has sufficient resources, deduct the resources and build the settlement
-    if (hasBrick && hasWood && hasWool && hasOat) {
-        // Deduct resources
-        int brickToRemove = 1;
-        int woodToRemove = 1;
-        int woolToRemove = 1;
-        int oatToRemove = 1;
-        for (auto it = resources.begin(); it != resources.end();) {
-            if (it->getType() == ResourceType::Brick && brickToRemove > 0) {
-                it = resources.erase(it);
-                brickToRemove--;
-            } else if (it->getType() == ResourceType::Wood && woodToRemove > 0) {
-                it = resources.erase(it);
-                woodToRemove--;
-            } else if (it->getType() == ResourceType::Wool && woolToRemove > 0) {
-                it = resources.erase(it);
-                woolToRemove--;
-            } else if (it->getType() == ResourceType::Oat && oatToRemove > 0) {
-                it = resources.erase(it);
-                oatToRemove--;
-            } else {
-                ++it;
-            }
-        }
-
-        // Build the settlement
-        // Implementation logic for building settlement goes here
-        // For example, you might add the settlement to the player's list of settlements
-        settlements.push_back("Settlement"); // Example: Add a settlement to the player's
-    } else {
-        std::cout << "Insufficient resources to build a settlement." << std::endl;
-    }
-
-}
-void Player::buildCity() {
-     // Check if player has sufficient resources to build a city
-    // Assuming the resources required for a city are 3 iron and 2 oats
-    bool hasIron = false;
-    bool hasOats = false;
-    int ironCount = 0;
-    int oatCount = 0;
-    for ( auto& resource : resources) {
-        if (resource.getType() == ResourceType::Iron) {
-            ironCount++;
-        } else if (resource.getType() == ResourceType::Oat) {
-            oatCount++;
-        }
-    }
-    if (ironCount >= 3 && oatCount >= 2) {
-        hasIron = true;
-        hasOats = true;
-    }
-
-    // If player has sufficient resources, deduct the resources and build the city
-    if (hasIron && hasOats) {
-        // Deduct resources
-        int ironToRemove = 3;
-        int oatsToRemove = 2;
-        for (auto it = resources.begin(); it != resources.end();) {
-            if (it->getType() == ResourceType::Iron && ironToRemove > 0) {
-                it = resources.erase(it);
-                ironToRemove--;
-            } else if (it->getType() == ResourceType::Oat && oatsToRemove > 0) {
-                it = resources.erase(it);
-                oatsToRemove--;
-            } else {
-                ++it;
-            }
-        }
-
-        // Build the city
-        // Implementation logic for building city goes here
-        // For example, you might add the city to the player's list of cities
-        cities.push_back("City"); // Example: Add a city to the player's list of cities
-    } else {
-        std::cout << "Insufficient resources to build a city." << std::endl;
-    }
-}
 
 void Player::trade(Player& otherPlayer, ResourceType offeredResource, ResourceType desiredResource, int offeredAmount, int desiredAmount) {
     // Check if the player has the offered resource in sufficient quantity
@@ -426,4 +477,5 @@ const std::string& Player::getName() const {
 int Player::getVictoryPoints() const {
     return victoryPoints;
 }
+
 

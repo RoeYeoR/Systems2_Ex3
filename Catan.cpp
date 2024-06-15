@@ -8,7 +8,7 @@ Catan::Catan(const Player& p1, const Player& p2, const Player& p3)
 
 void Catan::ChooseStartingPlayer() {
     // Implement starting player choice logic
-    std::cout << players[currentPlayerIndex].getName() << " starts the game." << std::endl;
+    std::cout << players[currentPlayerIndex].getName() << " starts the game." << "\n" << "\n";
 }
 
 Board& Catan::getBoard() {
