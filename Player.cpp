@@ -1,18 +1,37 @@
 #include "Player.hpp"
 #include "PlotOfLand.hpp"
 #include "DevelopmentCardType.hpp"
+#include "VertexPositionType.hpp"
+#include "Catan.hpp"
+#include "Point2D.hpp"
 #include <algorithm>
 #include <iostream>
 
 
 
-Player::Player(const std::string& name) : name(name), victoryPoints(2), knightCards(0),monopoly(0), buildingRoads(0),yearOfAbundance(0) ,isFirstTurn(true)
-   { 
-      // Seed the random number generator
-      srand(time(nullptr));
+Player::Player(const std::string& name)  : name(name),
+      victoryPoints(0),
+      knightCards(0),
+      monopoly(0),
+      buildingRoads(0),
+      yearOfAbundance(0),
+      isFirstTurn(true),
+      hasBiggestArmyCard(false),
+      settlementsBuilt(0),
+      roadsBuilt(0),
+      resources()
+    {
+    // Initialize resources vector for all ResourceType enums
+    for (int i = 0; i <= static_cast<int>(ResourceType::Iron); ++i) {
+        ResourceType type = static_cast<ResourceType>(i);
+        if (type != ResourceType::None) {
+            resources.push_back(Resource(type));
+        }
+    }
 
-   }
-
+    // Seed the random number generator
+    srand(static_cast<unsigned int>(time(nullptr)));
+    }
    Player::~Player() {
     // Delete dynamically allocated development cards to avoid memory leaks
     // for (DevelopmentCard* card : developmentCards) {
@@ -20,101 +39,120 @@ Player::Player(const std::string& name) : name(name), victoryPoints(2), knightCa
     // }
    }
 
-   std::vector<Resource> Player::getResources()
+ std::vector<Resource>& Player::getResources()  
    {
-    return this->resources;
+    return resources;
    }
- void Player::placeSettlement(Board& board, int plotIndex, Point2D vertex) {
-        // Check if it's the first turn and the player has built 2 settlements and 2 roads
-        if (isFirstTurn && settlementsBuilt >= 2 && roadsBuilt >= 2) {
-            isFirstTurn = false;  // End the first turn
+
+   const std::vector<Point2D>& Player::getSettlements() const
+   {
+
+     return settlements;
+
+   }
+ void Player::placeSettlement(Catan& catan,Board& board, int plotIndex, VertexPositionType position) {
+    // Check if it's the first turn and the player has built 2 settlements and 2 roads
+    if (isFirstTurn && settlementsBuilt >= 2 && roadsBuilt >= 2) {
+        isFirstTurn = false;  // End the first turn
+    }
+
+    // Check if the player has the required resources (only if it's not the first turn)
+    if (!isFirstTurn && (!hasResources(ResourceType::Brick, 1) || 
+                         !hasResources(ResourceType::Wood, 1) ||
+                         !hasResources(ResourceType::Wool, 1) ||
+                         !hasResources(ResourceType::Oat, 1))) {
+        throw std::invalid_argument("Not enough resources to place a settlement.");
+    }
+
+    // Get the plot from the board
+    PlotOfLand plot = board.getPlot(plotIndex);
+
+    // Determine the vertex based on the position
+    Point2D vertex;
+    switch (position) {
+        case VertexPositionType::UpVertex:
+            vertex = plot.getUpVertex();
+            break;
+        case VertexPositionType::UpRightVertex:
+            vertex = plot.getUpRightVertex();
+            break;
+        case VertexPositionType::BottomRightVertex:
+            vertex = plot.getBottomRightVertex();
+            break;
+        case VertexPositionType::BottomVertex:
+            vertex = plot.getBottomVertex();
+            break;
+        case VertexPositionType::BottomLeftVertex:
+            vertex = plot.getBottomLeftVertex();
+            break;
+        case VertexPositionType::UpLeftVertex:
+            vertex = plot.getUpLeftVertex();
+            break;
+        default:
+            throw std::invalid_argument("Invalid vertex position.");
+    }
+
+    // Check if the vertex is already occupied
+    if (board.isVertexOccupied(vertex)) {
+        throw std::invalid_argument("Vertex is already occupied by a settlement.");
+    }
+
+    // Ensure the new settlement is at least two sections of road away from another settlement
+    for (const auto& settlement : settlements) {
+        if (vertex.distanceTo(settlement) < 2) {
+            throw std::invalid_argument("New settlement must be at least two sections of road away from another settlement.");
         }
+    }
 
-        // Check if the player has the required resources (only if it's not the first turn)
-        if (!isFirstTurn && (!hasResources(ResourceType::Brick, 1) || 
-                             !hasResources(ResourceType::Wood, 1) ||
-                             !hasResources(ResourceType::Wool, 1) ||
-                             !hasResources(ResourceType::Oat, 1))) {
-            throw std::invalid_argument("Not enough resources to place a settlement.");
-        }
-
-        // Get the plot from the board
-        PlotOfLand plot = board.getPlot(plotIndex);
-
-        // Validate the vertex
-        std::vector<Point2D> vertices = {
-            plot.getUpVertex(),
-            plot.getUpRightVertex(),
-            plot.getBottomRightVertex(),
-            plot.getBottomVertex(),
-            plot.getBottomLeftVertex(),
-            plot.getUpLeftVertex()
-        };
-
-        bool isValidVertex = false;
-        for (const auto& v : vertices) {
-            if (v == vertex) {
-                isValidVertex = true;
-                break;
-            }
-        }
-
-        if (!isValidVertex) {
-            throw std::invalid_argument("Invalid vertex specified.");
-        }
-
-        // Check if the vertex is already occupied
-        if (board.isVertexOccupied(vertex)) {
-            throw std::invalid_argument("Vertex is already occupied by a settlement.");
-        }
-
-        // Ensure the new settlement is at least two sections of road away from another settlement
-        for (const auto& settlement : settlements) {
-            if (vertex.distanceTo(settlement) < 2) {
-                throw std::invalid_argument("New settlement must be at least two sections of road away from another settlement.");
-            }
-        }
-
-        // Check adjacency rules
-        bool isAdjacentToRoad = false;
+    // Check adjacency rules, but skip this check if it is the first turn
+    bool isAdjacentToRoad = false;
+    if (!isFirstTurn) {
         for (const auto& road : roads) {
             if (road.getStart() == vertex || road.getEnd() == vertex) {
                 isAdjacentToRoad = true;
                 break;
             }
         }
-
-        if (!isAdjacentToRoad) {
-            throw std::invalid_argument("Settlement must be adjacent to a road.");
-        }
-
-        // Place the settlement
-        settlements.push_back(vertex);
-        board.addSettlement(plotIndex, vertex);
-
-        // Deduct the resources (only if it's not the first turn)
-        if (!isFirstTurn) {
-            removeResources(ResourceType::Brick, 1);
-            removeResources(ResourceType::Wood, 1);
-            removeResources(ResourceType::Wool, 1);
-            removeResources(ResourceType::Oat, 1);
-        }
-
-        // Award one victory point
-        ++victoryPoints;
-
-        // Increment the count of settlements built during the first turn
-        if (isFirstTurn) {
-            ++settlementsBuilt;
-
-            // Check if the first turn conditions are met after placing the settlement
-            if (settlementsBuilt >= 2 && roadsBuilt >= 2) {
-                isFirstTurn = false;  // End the first turn
-            }
-        }
-
-        std::cout << "Settlement placed at (" << vertex.getX() << ", " << vertex.getY() << ")" << std::endl;
+    } else {
+        isAdjacentToRoad = true;  // Allow placement during the first turn
     }
+
+    if (!isAdjacentToRoad) {
+        throw std::invalid_argument("Settlement must be adjacent to a road.");
+    }
+
+    // Place the settlement
+    settlements.push_back(vertex);
+    board.addSettlement(plotIndex, vertex);
+
+    // Deduct the resources (only if it's not the first turn)
+    if (!isFirstTurn) {
+        removeResources(ResourceType::Brick, 1);
+        removeResources(ResourceType::Wood, 1);
+        removeResources(ResourceType::Wool, 1);
+        removeResources(ResourceType::Oat, 1);
+    }
+
+    // Award one victory point
+    ++victoryPoints;
+
+    // Increment the count of settlements built during the first turn
+    if (isFirstTurn) {
+        ++settlementsBuilt;
+
+        // Check if the first turn conditions are met after placing the settlement
+        if (settlementsBuilt >= 2 && roadsBuilt >= 2) {
+            isFirstTurn = false;  // End the first turn
+        }
+    }
+
+    std::cout << name <<" has placed a settlement at (" << vertex.getX() << ", " << vertex.getY() << ")" << std::endl;
+     if (isFirstTurn)
+    {
+        catan.grantResource(*this,vertex);
+    }
+}
+
 
 
 void Player::placeCity(Board& board, Point2D vertex) {
@@ -147,7 +185,7 @@ void Player::placeCity(Board& board, Point2D vertex) {
 }
 
 
-void Player::placeRoad(Board& board, int plotIndex, Point2D start, Point2D end) {
+void Player::placeRoad(Board& board, int plotIndex, VertexPositionType startPos, VertexPositionType endPos) {
     // Check if it's the first turn and the player has built 2 settlements and 2 roads
     if (isFirstTurn && settlementsBuilt >= 2 && roadsBuilt >= 2) {
         isFirstTurn = false;  // End the first turn
@@ -161,6 +199,54 @@ void Player::placeRoad(Board& board, int plotIndex, Point2D start, Point2D end) 
 
     // Get the plot from the board
     PlotOfLand plot = board.getPlot(plotIndex);
+
+    // Determine the start and end vertices based on the positions
+    Point2D start, end;
+    switch (startPos) {
+        case VertexPositionType::UpVertex:
+            start = plot.getUpVertex();
+            break;
+        case VertexPositionType::UpRightVertex:
+            start = plot.getUpRightVertex();
+            break;
+        case VertexPositionType::BottomRightVertex:
+            start = plot.getBottomRightVertex();
+            break;
+        case VertexPositionType::BottomVertex:
+            start = plot.getBottomVertex();
+            break;
+        case VertexPositionType::BottomLeftVertex:
+            start = plot.getBottomLeftVertex();
+            break;
+        case VertexPositionType::UpLeftVertex:
+            start = plot.getUpLeftVertex();
+            break;
+        default:
+            throw std::invalid_argument("Invalid start vertex position.");
+    }
+
+    switch (endPos) {
+        case VertexPositionType::UpVertex:
+            end = plot.getUpVertex();
+            break;
+        case VertexPositionType::UpRightVertex:
+            end = plot.getUpRightVertex();
+            break;
+        case VertexPositionType::BottomRightVertex:
+            end = plot.getBottomRightVertex();
+            break;
+        case VertexPositionType::BottomVertex:
+            end = plot.getBottomVertex();
+            break;
+        case VertexPositionType::BottomLeftVertex:
+            end = plot.getBottomLeftVertex();
+            break;
+        case VertexPositionType::UpLeftVertex:
+            end = plot.getUpLeftVertex();
+            break;
+        default:
+            throw std::invalid_argument("Invalid end vertex position.");
+    }
 
     // Validate the vertices
     std::vector<Point2D> vertices = {
@@ -229,7 +315,7 @@ void Player::placeRoad(Board& board, int plotIndex, Point2D start, Point2D end) 
         }
     }
 
-    std::cout << "Road placed between (" << start.getX() << ", " << start.getY() << ") and (" << end.getX() << ", " << end.getY() << ")" << std::endl;
+    std::cout << name <<" has placed a Road between (" << start.getX() << ", " << start.getY() << ") and (" << end.getX() << ", " << end.getY() << ")" << std::endl;
 }
 
 
@@ -254,10 +340,34 @@ void Player::removeResources(ResourceType type, int count) {
     }
 }
 
+bool Player::findVertexInSettlements(const Point2D& vertex) {
+    auto it = std::find(settlements.begin(), settlements.end(), vertex);
 
-void Player::rollDice(const Board& board) {
-    // Roll the dice to get a random number between 2 and 12
+    if (it != settlements.end()) {
+        std::cout << "Match found at settlement (" << it->getX() << ", " << it->getY() << ")\n";
+        return true;
+    }
+    
    
+    return false;
+}
+
+
+
+bool Player::hasSettlementAt(const Point2D& vertex)  {
+    for (int i = 0;i<settlements.size();i++)
+    {
+         std::cout << "Comparing settlement (" << settlements[i].getX() << ", " << settlements[i].getY() << ") with vertex (" << vertex.getX() << ", " << vertex.getY() << ")" << std::endl;
+        if (settlements[i] == vertex) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+void Player::rollDice(Catan& catan,const Board& board) {
+    // Roll the dice to get a random number between 2 and 12
     int diceResult = std::rand() % 11 + 2; // Generate a random number between 2 and 12
     std::cout << "Dice result: " << diceResult << std::endl;
 
@@ -265,8 +375,21 @@ void Player::rollDice(const Board& board) {
     for (int i = 0; i < 19; ++i) {
         PlotOfLand plot = board.getPlot(i);
         if (plot.getNumber() == diceResult) {
-            // Grant resources to players with settlements or cities neighboring this plot
-            // Example: playerResources[plot.resource]++; // Increment resource count for the player
+            // Check each vertex of the plot
+            for (const Point2D& vertex : plot.getVertices()) {
+                // for (Player& player : catan.getPlayers()) {
+                //     if (player.hasSettlementAt(vertex)) {
+                //         catan.grantResource(player, vertex);
+                //     }
+                // }
+               
+                   
+                        
+                    catan.grantResource(vertex);
+                        
+                    
+                
+            }
         }
     }
 }
@@ -398,12 +521,13 @@ void Player::buyDevelopmentCard() {
         case 1:
             VictoryPointCards.push_back(VictoryPointCard());
             cardType = DevelopmentCardType::VictoryPoint;
-            victoryPoints++;
+            
             break;
         case 2:
             KnightCards.push_back(KnightCard());
             cardType = DevelopmentCardType::Knight;
-            knightCards++;
+           if(KnightCards.size() >= 3)
+                hasBiggestArmyCard = true;
             break;
         default:
             break;
@@ -414,49 +538,117 @@ void Player::buyDevelopmentCard() {
 }
 
 
- void Player::useDevelopmentCard(DevelopmentCardType type)
+ void Player::useDevelopmentCard(Catan& catan,DevelopmentCardType type)
  {
-    switch(type)
-    {
-        case DevelopmentCardType::Promotion:
+      switch(type) {
+        case DevelopmentCardType::Promotion: {
             int index;
             std::cout << "Choose promotion card type: " << "\n";
-            std::cout << "1.monopoly"<<"\n";
-            std::cout << "2.buildingRoads"<<"\n";
-            std::cout << "3.yearOfAbundance" << "\n";
+            std::cout << "1. Monopoly" << "\n";
+            std::cout << "2. Building Roads" << "\n";
+            std::cout << "3. Year of Abundance" << "\n";
             std::cin >> index;
-            switch(index)
-            {
-                case 1:
-                
-                   break;
-
+            switch(index) {
+                case 1: {
+                    // Monopoly: Take all resources of one type from all other players
+                    std::cout << "You used the Monopoly card. Choose resource type: " << "\n";
+                    std::cout << "1. Wood" << "\n";
+                    std::cout << "2. Brick" << "\n";
+                    std::cout << "3. Wool" << "\n";
+                    std::cout << "4. Oat" << "\n";
+                    std::cout << "5. Iron" << "\n";
+                    int resourceIndex;
+                    std::cin >> resourceIndex;
+                    ResourceType chosenResource = static_cast<ResourceType>(resourceIndex - 1);
+                    // Assume we have a reference to all players
+                    for (Player& player : catan.getPlayers()) {
+                        if (&player != this) {  // Skip the current player
+                            int amount = 0;
+                            for (Resource& resource : player.resources) {
+                                if (resource.getType() == chosenResource) {
+                                    amount += resource.getCurrentAmount();
+                                    resource.changeAmount(-resource.getCurrentAmount());
+                                }
+                            }
+                            for (Resource& resource : resources) {
+                                if (resource.getType() == chosenResource) {
+                                    resource.changeAmount(amount);
+                                }
+                            }
+                        }
+                    }
+                    break;
+                }
                 case 2:
+                    // Building Roads: Build two free roads
+                    std::cout << "You used the Building Roads card." << std::endl;
+                    buildingRoads += 2;
+                    // Implement the logic to place two free roads
                     break;
-
                 case 3:
+                    // Year of Abundance: Take any two resources from the bank
+                    std::cout << "You used the Year of Abundance card. Choose two resources: " << "\n";
+                    std::cout << "1. Wood" << "\n";
+                    std::cout << "2. Brick" << "\n";
+                    std::cout << "3. Wool" << "\n";
+                    std::cout << "4. Oat" << "\n";
+                    std::cout << "5. Iron" << "\n";
+                    int resourceIndex1, resourceIndex2;
+                    std::cin >> resourceIndex1 >> resourceIndex2;
+                    resources[resourceIndex1 - 1].changeAmount(1);
+                    resources[resourceIndex2 - 1].changeAmount(1);
+                    break;
+                default:
+                    std::cout << "Invalid choice." << std::endl;
                     break;
             }
-
-
-
+            break;
+        }
         case DevelopmentCardType::VictoryPoint:
-            if(victoryPoints>0)
-            {
-                //VictoryPointCard::use();
+            
+            std::cout << "Victory Point already added to total points." << std::endl;
+            
+            break;
+        case DevelopmentCardType::Knight:
+            if(!KnightCards.empty()) {
+                // Assume we remove the card after use
+                knightCards++;
+                KnightCards.pop_back();
+                std::cout << "You used a Knight card. Current knight count: " << knightCards << std::endl;
+                // Check for Largest Army bonus if applicable
+                // Placeholder logic to check for Largest Army
+                break;
+            } else {
+                std::cout << "No Knight cards to use." << std::endl;
             }
-
-
-
+            break;
+        default:
+            std::cout << "Invalid development card type." << std::endl;
+            break;
     }
-
-
 
  }
 
 void Player::endTurn() {
-    // Implement end turn logic
-    std::cout << name << " ended their turn." << std::endl;
+   // Calculate total victory points
+    int totalVictoryPoints = 0;
+
+    // Add points from settlements (1 point each)
+    totalVictoryPoints += settlements.size();
+
+    // Add points from cities (2 points each)
+    totalVictoryPoints += cities.size() * 2;
+
+    totalVictoryPoints+= VictoryPointCards.size();
+    if(hasBiggestArmyCard)
+        totalVictoryPoints+= 2;
+
+    // Check if the player has more than 10 victory points
+    if (totalVictoryPoints >= 10) {
+        std::cout << getName() << " has won the game with " << totalVictoryPoints << " victory points!" << std::endl;
+    } else {
+        std::cout << getName() << " ends the turn with " << totalVictoryPoints << " victory points." << std::endl;
+    }
 }
 
 void Player::printPoints() const {

@@ -12,7 +12,8 @@
 
 class Board {
 
-private: 
+private:
+    std::vector<std::vector<int>> layout;
     std::vector<PlotOfLand> plots;
     std::vector<std::vector<int>> positions;
     std::vector<Point2D> globalSettlements; 
@@ -21,6 +22,7 @@ private:
 public:
     Board();
     void printBoard();
+    void printLayout();
     void initializeBoard();
     std::vector<PlotOfLand> getPlots();
     void setPlotsVertices();

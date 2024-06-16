@@ -5,7 +5,7 @@
 
 PlotOfLand::PlotOfLand() : resource(ResourceType::None), landType(LandType::Desert), number(0), vertices(6) {}
 
-PlotOfLand::PlotOfLand(ResourceType type, int num) : resource(type), number(num) {}
+PlotOfLand::PlotOfLand(ResourceType type, int num) : resource(type), number(num) ,vertices(6) {}
 
 void PlotOfLand::setResource(ResourceType type) {
     this->resource = Resource(type);
@@ -37,6 +37,11 @@ int PlotOfLand::getNumber() const {
 LandType PlotOfLand::getLandType() const {
     return this->landType;
 }
+
+ std::vector<Point2D> PlotOfLand::getVertices()
+ {
+    return vertices;
+ }
 
 Point2D PlotOfLand::getUpVertex()
 {

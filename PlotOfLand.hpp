@@ -29,6 +29,7 @@ public:
     Resource getResource() const;
     int getNumber() const;
     LandType getLandType() const;
+    std::vector<Point2D> getVertices();
     void setUpVertex(Point2D p);
     void setUpRightVertex(Point2D p);
     void setBottomRightVertex(Point2D p);

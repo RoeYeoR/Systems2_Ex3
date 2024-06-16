@@ -1,6 +1,7 @@
 #include "Board.hpp"
 #include "Resource.hpp"
 #include "PlotOfLand.hpp"
+#include <unordered_map>
 #include <random>
 #include "../../../../../../usr/include/c++/11/bits/algorithmfwd.h"
 #include <iostream>
@@ -8,8 +9,15 @@
 #include <algorithm>
 #include "Point2D.hpp"
 
+
 Board::Board() : positions(12, std::vector<int>(11)) {
     initializeBoard();
+
+    layout = {{0, 1, 2},
+        {3, 4, 5, 6},
+        {7, 8, 9, 10, 11},
+        {12, 13, 14, 15},
+        {16, 17, 18}};
 }
 
  std::vector<PlotOfLand> Board::getPlots()
@@ -18,28 +26,7 @@ Board::Board() : positions(12, std::vector<int>(11)) {
  }
 
 void Board::initializeBoard() {
-    // Define resources and piece names for each plot of land
-    std::vector<Resource> resources = {
-        Resource(ResourceType::Iron),
-        Resource(ResourceType::Wool),
-        Resource(ResourceType::Oat),
-        Resource(ResourceType::Wood),
-        Resource(ResourceType::Brick),
-        Resource(ResourceType::Oat),
-        Resource(ResourceType::Wood),
-        Resource(ResourceType::Brick),
-        Resource(ResourceType::Iron),
-        Resource(ResourceType::Wood),
-        Resource(ResourceType::Wool),
-        Resource(ResourceType::Wool),
-        Resource(ResourceType::Oat),
-        Resource(ResourceType::Wood),
-        Resource(ResourceType::Oat),
-        Resource(ResourceType::Brick),
-        Resource(ResourceType::Iron),
-        Resource(ResourceType::Wool)
-    };
-
+        // Define the possible land types and their distribution
     std::vector<LandType> land_Types = {
         LandType::Mountains,
         LandType::PastureLand,
@@ -61,7 +48,6 @@ void Board::initializeBoard() {
         LandType::PastureLand
     };
 
-    // Define the numbers according to the instructions
     std::vector<int> numbers = {
         2, 3, 3, 4, 4, 5, 5, 6, 6, 8, 8, 9, 9, 10, 10, 11, 11, 12
     };
@@ -70,39 +56,51 @@ void Board::initializeBoard() {
     std::random_device rd;
     std::mt19937 g(rd());
 
-    // Shuffle the resources and land types
-    std::shuffle(resources.begin(), resources.end(), g);
+    // Shuffle the land types and numbers
     std::shuffle(land_Types.begin(), land_Types.end(), g);
     std::shuffle(numbers.begin(), numbers.end(), g);
 
     int plotCount = 19;
 
-    // Create plots and explicitly set the desert at position 9
+    // Create plots and explicitly set the desert at a random position
     std::vector<PlotOfLand> plots(plotCount);
     for (int i = 0; i < plotCount; ++i) {
         plots[i] = PlotOfLand();
     }
 
-    plots[9].setlandType(LandType::Desert);
-    plots[9].setResource(ResourceType::None);
-    plots[9].setNumber(0);
+    // LandType to ResourceType mapping
+    std::unordered_map<LandType, ResourceType> landToResourceMap = {
+        { LandType::Forest, ResourceType::Wood },
+        { LandType::Hills, ResourceType::Brick },
+        { LandType::PastureLand, ResourceType::Wool },
+        { LandType::AgriculturalLand, ResourceType::Oat },
+        { LandType::Mountains, ResourceType::Iron },
+        { LandType::Desert, ResourceType::None }
+    };
 
-    int resourceIndex = 0;
+    // Find a random position for the desert
+    int desertIndex = std::uniform_int_distribution<int>(0, plotCount - 1)(g);
+
+    // Set plots properties based on shuffled vectors
     int landTypeIndex = 0;
     int numberIndex = numbers.size() - 1;
 
     for (int i = 0; i < plotCount; ++i) {
-        if (i == 9) {
-            continue;
-        }
-
-        plots[i].setlandType(land_Types[landTypeIndex++]);
-        plots[i].setResource(resources[resourceIndex++].getType());
-
-        if (plots[i].getlandType() == LandType::Desert) {
+        if (i == desertIndex) {
+            plots[i].setlandType(LandType::Desert);
+            plots[i].setResource(ResourceType::None);
             plots[i].setNumber(0);
         } else {
-            plots[i].setNumber(numbers[numberIndex--]);
+            plots[i].setlandType(land_Types[landTypeIndex]);
+            plots[i].setResource(landToResourceMap[land_Types[landTypeIndex]]);
+
+            if (land_Types[landTypeIndex] == LandType::Desert) {
+                plots[i].setNumber(0);
+            } else {
+                plots[i].setNumber(numbers[numberIndex--]);
+            }
+
+            ++landTypeIndex;
         }
     }
 
@@ -127,41 +125,7 @@ void Board::initializeBoard() {
     }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 void Board::printBoard() {
-    // Define the layout of the board
-    std::vector<std::vector<int>> layout = {
-        {0, 1, 2},
-        {3, 4, 5, 6},
-        {7, 8, 9, 10, 11},
-        {12, 13, 14, 15},
-        {16, 17, 18}
-    };
 
     std::cout << "||||||||||||||||||||||||------CATAN BOARD-----|||||||||||||||||||||||||||||||||||||" << "\n" <<"\n";
 
@@ -177,6 +141,37 @@ void Board::printBoard() {
     }
         std::cout << std::endl;
         std::cout <<"|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||" <<"\n" "\n";
+
+}
+
+void Board::printLayout()
+{
+    std::vector<std::vector<int>> layout = 
+    {
+        {0, 1, 2, -1, -1},
+        {3, 4, 5, 6, -1},
+        {7, 8, 9, 10, 11},
+        {12, 13, 14, 15, -1},
+        {16, 17, 18, -1, -1}
+    };
+
+   std::cout<<"   Layout: "<<"\n";
+
+    for (int i = 0; i < 5; ++i) {
+        // Print leading spaces based on the row number
+        std::cout << std::setw((4 - i) * 2) << ""; // Adjust the multiplier to match the desired spacing
+        
+        for (int j = 0; j < 5; ++j) {
+            if (layout[i][j] != -1) {
+                std::cout << layout[i][j] << " ";
+            }
+        }
+        std::cout << std::endl;
+    }
+
+    std::cout << std::endl;
+    std::cout <<"*****************************************************************************************************" <<std::endl;
+
 
 }
 

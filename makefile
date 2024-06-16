@@ -3,8 +3,8 @@ CXXFLAGS = -std=c++11 -g
 VALGRIND_FLAGS = -v --leak-check=full --show-leak-kinds=all --error-exitcode=99
 
 SOURCES = main.cpp Resource.cpp DevelopmentCard.cpp PromotionCard.cpp \
-      KnightCard.cpp VictoryPointCard.cpp Player.cpp Board.cpp Catan.cpp PlotOfLand.cpp ResourceType.cpp LandType.cpp DevelopmentCardType.cpp \
-	  Point2D.cpp Road.cpp
+      KnightCard.cpp VictoryPointCard.cpp Catan.cpp  Player.cpp Board.cpp PlotOfLand.cpp ResourceType.cpp LandType.cpp DevelopmentCardType.cpp \
+	  Point2D.cpp Road.cpp 
 OBJECTS = $(SOURCES:.cpp=.o)
 
 run: catan
