@@ -28,7 +28,7 @@ Player::Player(const std::string& name)  : name(name),
             resources.push_back(Resource(type));
         }
     }
-
+    
     // Seed the random number generator
     srand(static_cast<unsigned int>(time(nullptr)));
     }
@@ -397,39 +397,27 @@ void Player::rollDice(Catan& catan,const Board& board) {
 
 
 void Player::trade(Player& otherPlayer, ResourceType offeredResource, ResourceType desiredResource, int offeredAmount, int desiredAmount) {
-    // Check if the player has the offered resource in sufficient quantity
-    int offeredIndex = -1;
-    for (size_t i = 0; i < resources.size(); ++i) {
-        if (resources[i].getType() == offeredResource) {
-            offeredIndex = i;
-            break;
-        }
-    }
-    if (offeredIndex == -1 || offeredAmount > resources[offeredIndex].getCurrentAmount()) {
+   
+    if ( offeredAmount > resources[static_cast<int>(offeredResource)].getCurrentAmount()) {
         throw std::invalid_argument("Invalid trade: Player does not have sufficient offered resource.");
     }
 
-    // Check if the other player has the desired resource in sufficient quantity
-    int desiredIndex = -1;
-    for (size_t i = 0; i < otherPlayer.resources.size(); ++i) {
-        if (otherPlayer.resources[i].getType() == desiredResource) {
-            desiredIndex = i;
-            break;
-        }
-    }
-    if (desiredIndex == -1 || desiredAmount > otherPlayer.resources[desiredIndex].getCurrentAmount()) {
+   
+    if ( desiredAmount > otherPlayer.resources[static_cast<int>(desiredResource)].getCurrentAmount()) {
         throw std::invalid_argument("Invalid trade: Other player does not have sufficient desired resource.");
     }
 
     // Perform the trade
 
     //reduce
-    resources[offeredIndex].changeAmount(-offeredAmount);
-    otherPlayer.resources[desiredIndex].changeAmount(-desiredAmount);
+    resources[static_cast<int>(offeredResource)].changeAmount(-offeredAmount);
+    otherPlayer.resources[static_cast<int>(desiredResource)].changeAmount(-desiredAmount);
 
     //add
-    resources[desiredIndex].changeAmount(desiredAmount);
-    otherPlayer.resources[offeredIndex].changeAmount(offeredAmount);
+    resources[static_cast<int>(desiredResource)].changeAmount(desiredAmount);
+    otherPlayer.resources[static_cast<int>(offeredResource)].changeAmount(offeredAmount);
+
+    std::cout << "trade has done successfully !" <<std::endl;
 
 }
 

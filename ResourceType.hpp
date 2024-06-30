@@ -7,10 +7,10 @@
 enum class ResourceType { 
     Wood =0,
     Brick=1, 
-    Wool=3, 
-    Oat=4, 
-    Iron=5, 
-    None=6 
+    Wool=2, 
+    Oat=3, 
+    Iron=4, 
+    None=5
 
  };
     
